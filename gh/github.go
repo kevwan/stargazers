@@ -59,8 +59,10 @@ func (m Monitor) Start() error {
 	tc := oauth2.NewClient(context.Background(), ts)
 	cli := github.NewClient(tc)
 
-	if err := m.requestAll(cli, owner, project); err != nil {
+	if stars, err := m.requestAll(cli, owner, project); err != nil {
 		return err
+	} else {
+		stargazers = stars
 	}
 
 	ticker := time.NewTicker(timeInterval)
@@ -114,23 +116,12 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 		return
 	}
 
-	user, _, err := cli.Users.Get(context.Background(), *gazer.User.Login)
+	name, followers, err := m.requestUser(cli, *gazer.User.Login)
 	if err != nil {
 		if err := m.send(err.Error()); err != nil {
 			logx.Error(err)
 		}
 		return
-	}
-
-	var name string
-	var followers int
-	if user != nil {
-		if user.Name != nil {
-			name = *user.Name
-		}
-		if user.Followers != nil {
-			followers = *user.Followers
-		}
 	}
 
 	// refresh count, because users might star after fetching count
@@ -152,7 +143,8 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 	}
 }
 
-func (m Monitor) requestAll(cli *github.Client, owner, project string) error {
+func (m Monitor) requestAll(cli *github.Client, owner, project string) (map[string]time.Time, error) {
+	stars := make(map[string]time.Time)
 	var page = 1
 	for {
 		logx.Infof("requesting page %d", page)
@@ -162,13 +154,13 @@ func (m Monitor) requestAll(cli *github.Client, owner, project string) error {
 				PerPage: pageSize,
 			})
 		if err != nil {
-			return fmt.Errorf("failed to fetch stargazers, error: %v", err)
+			return nil, fmt.Errorf("failed to fetch stargazers, error: %v", err)
 		}
 
 		for _, gazer := range gazers {
 			id := *gazer.User.Login
 			if _, ok := stargazers[id]; !ok {
-				stargazers[id] = gazer.StarredAt.Time
+				stars[id] = gazer.StarredAt.Time
 			}
 		}
 
@@ -178,7 +170,7 @@ func (m Monitor) requestAll(cli *github.Client, owner, project string) error {
 		page = resp.NextPage
 	}
 
-	return nil
+	return stars, nil
 }
 
 func (m Monitor) requestPage(cli *github.Client, owner, project string, count, page int) error {
@@ -208,6 +200,27 @@ func (m Monitor) requestPage(cli *github.Client, owner, project string, count, p
 	return nil
 }
 
+func (m Monitor) requestUser(cli *github.Client, id string) (name string, followers int, err error) {
+	user, _, err := cli.Users.Get(context.Background(), id)
+	if err != nil {
+		if err := m.send(err.Error()); err != nil {
+			logx.Error(err)
+		}
+		return
+	}
+
+	if user != nil {
+		if user.Name != nil {
+			name = *user.Name
+		}
+		if user.Followers != nil {
+			followers = *user.Followers
+		}
+	}
+
+	return
+}
+
 func (m Monitor) send(text string) error {
 	return feishu.Send(m.app, m.secret, m.receiver, text)
 }
@@ -218,7 +231,38 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 		return 0, err
 	}
 
-	dayStars[time.Now().Format(dayFormat)] = *repo.StargazersCount
+	day := time.Now().Format(dayFormat)
+	prev := dayStars[day]
+	if *repo.StargazersCount < prev {
+		stars, err := m.requestAll(cli, owner, project)
+		if err != nil {
+			return 0, err
+		}
+
+		for k, v := range stargazers {
+			if _, ok := stars[k]; !ok {
+				name, followers, err := m.requestUser(cli, k)
+				if err != nil {
+					return 0, err
+				}
+
+				if len(name) > 0 {
+					if err := m.send(fmt.Sprintf("unstar\nid: %s\nname: %s\nfollowers: %d\nstarAt: %s",
+						k, name, followers, v.Format(starAtFormat))); err != nil {
+						logx.Error(err)
+					}
+				} else {
+					if err := m.send(fmt.Sprintf("unstar\nid: %s\nfollowers: %d\nstarAt: %s",
+						k, followers, v.Format(starAtFormat))); err != nil {
+						logx.Error(err)
+					}
+				}
+			}
+		}
+
+		stargazers = stars
+	}
+	dayStars[day] = *repo.StargazersCount
 
 	return *repo.StargazersCount, nil
 }
