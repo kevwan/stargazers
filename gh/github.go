@@ -159,7 +159,7 @@ func (m Monitor) requestAll(cli *github.Client, owner, project string) (map[stri
 
 		for _, gazer := range gazers {
 			id := *gazer.User.Login
-			if _, ok := stargazers[id]; !ok {
+			if _, ok := stars[id]; !ok {
 				stars[id] = gazer.StarredAt.Time
 			}
 		}
@@ -240,22 +240,24 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 		}
 
 		for k, v := range stargazers {
-			if _, ok := stars[k]; !ok {
-				name, followers, err := m.requestUser(cli, k)
-				if err != nil {
-					return 0, err
-				}
+			if _, ok := stars[k]; ok {
+				continue
+			}
 
-				if len(name) > 0 {
-					if err := m.send(fmt.Sprintf("unstar\nid: %s\nname: %s\nfollowers: %d\nstarAt: %s",
-						k, name, followers, v.Format(starAtFormat))); err != nil {
-						logx.Error(err)
-					}
-				} else {
-					if err := m.send(fmt.Sprintf("unstar\nid: %s\nfollowers: %d\nstarAt: %s",
-						k, followers, v.Format(starAtFormat))); err != nil {
-						logx.Error(err)
-					}
+			name, followers, err := m.requestUser(cli, k)
+			if err != nil {
+				return 0, err
+			}
+
+			if len(name) > 0 {
+				if err := m.send(fmt.Sprintf("unstar\nid: %s\nname: %s\nfollowers: %d\nstarAt: %s",
+					k, name, followers, v.Format(starAtFormat))); err != nil {
+					logx.Error(err)
+				}
+			} else {
+				if err := m.send(fmt.Sprintf("unstar\nid: %s\nfollowers: %d\nstarAt: %s",
+					k, followers, v.Format(starAtFormat))); err != nil {
+					logx.Error(err)
 				}
 			}
 		}
