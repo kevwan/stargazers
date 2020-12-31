@@ -17,7 +17,7 @@ type (
 	}
 
 	Message struct {
-		UserId  string  `json:"user_id"`
+		Email  string   `json:"email"`
 		MsgType string  `json:"msg_type"`
 		Content content `json:"content"`
 	}
@@ -29,7 +29,7 @@ func Send(app, secret, receiver, text string) error {
 		AppSecret: secret,
 	})
 	payload, err := json.Marshal(Message{
-		UserId:  receiver,
+		Email:  receiver,
 		MsgType: messageType,
 		Content: content{
 			Text: text,
