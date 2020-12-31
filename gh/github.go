@@ -28,20 +28,22 @@ var (
 )
 
 type Monitor struct {
-	repo     string
-	token    string
-	app      string
-	secret   string
-	receiver string
+	repo          string
+	token         string
+	app           string
+	secret        string
+	receiver      string
+	receiverEmail string
 }
 
-func NewMonitor(repo, token, app, secret, receiver string) Monitor {
+func NewMonitor(repo, token, app, secret, receiver, receiverEmail string) Monitor {
 	return Monitor{
-		repo:     repo,
-		token:    token,
-		app:      app,
-		secret:   secret,
-		receiver: receiver,
+		repo:          repo,
+		token:         token,
+		app:           app,
+		secret:        secret,
+		receiver:      receiver,
+		receiverEmail: receiverEmail,
 	}
 }
 
@@ -222,7 +224,7 @@ func (m Monitor) requestUser(cli *github.Client, id string) (name string, follow
 }
 
 func (m Monitor) send(text string) error {
-	return feishu.Send(m.app, m.secret, m.receiver, text)
+	return feishu.Send(m.app, m.secret, m.receiver, m.receiverEmail, text)
 }
 
 func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, error) {
@@ -250,13 +252,13 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 			}
 
 			if len(name) > 0 {
-				if err := m.send(fmt.Sprintf("unstar\nid: %s\nname: %s\nfollowers: %d\nstarAt: %s",
-					k, name, followers, v.Format(starAtFormat))); err != nil {
+				if err := m.send(fmt.Sprintf("unstar\nid: %s\nname: %s\nfollowers: %d\nstarAt: %s\nstars: %d",
+					k, name, followers, v.Format(starAtFormat), *repo.StargazersCount)); err != nil {
 					logx.Error(err)
 				}
 			} else {
-				if err := m.send(fmt.Sprintf("unstar\nid: %s\nfollowers: %d\nstarAt: %s",
-					k, followers, v.Format(starAtFormat))); err != nil {
+				if err := m.send(fmt.Sprintf("unstar\nid: %s\nfollowers: %d\nstarAt: %s\nstars: %d",
+					k, followers, v.Format(starAtFormat), *repo.StargazersCount)); err != nil {
 					logx.Error(err)
 				}
 			}

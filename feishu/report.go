@@ -17,19 +17,21 @@ type (
 	}
 
 	Message struct {
-		Email  string   `json:"email"`
+		UserId  string  `json:"user_id"`
+		Email   string  `json:"email"`
 		MsgType string  `json:"msg_type"`
 		Content content `json:"content"`
 	}
 )
 
-func Send(app, secret, receiver, text string) error {
+func Send(app, secret, receiver, receiverEmail, text string) error {
 	App = feishu.NewApp(feishu.AppConfig{
 		AppId:     app,
 		AppSecret: secret,
 	})
 	payload, err := json.Marshal(Message{
-		Email:  receiver,
+		UserId:  receiver,
+		Email:   receiverEmail,
 		MsgType: messageType,
 		Content: content{
 			Text: text,
