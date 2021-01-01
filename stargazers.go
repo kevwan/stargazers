@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 
+	"stargazers/feishu"
 	"stargazers/gh"
 
 	"github.com/tal-tech/go-zero/core/conf"
@@ -12,7 +13,7 @@ import (
 var configFile = flag.String("f", "config.yaml", "the config file")
 
 type (
-	feishu struct {
+	Feishu struct {
 		AppId         string `json:"appId"`
 		AppSecret     string `json:"appSecret"`
 		Receiver      string `json:"receiver,optional"`
@@ -22,7 +23,7 @@ type (
 	Config struct {
 		Token  string `json:"token"`
 		Repo   string `json:"repo"`
-		Feishu feishu `json:"feishu"`
+		Feishu Feishu `json:"feishu"`
 	}
 )
 
@@ -32,7 +33,8 @@ func main() {
 	var c Config
 	conf.MustLoad(*configFile, &c)
 
-	mon := gh.NewMonitor(c.Repo, c.Token, c.Feishu.AppId, c.Feishu.AppSecret,
-		c.Feishu.Receiver, c.Feishu.ReceiverEmail)
+	mon := gh.NewMonitor(c.Repo, c.Token, func(text string) error {
+		return feishu.Send(c.Feishu.AppId, c.Feishu.AppSecret, c.Feishu.Receiver, c.Feishu.ReceiverEmail, text)
+	})
 	log.Fatal(mon.Start())
 }

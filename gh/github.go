@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"stargazers/feishu"
-
 	"github.com/google/go-github/v33/github"
 	"github.com/tal-tech/go-zero/core/logx"
 	"golang.org/x/oauth2"
@@ -28,22 +26,16 @@ var (
 )
 
 type Monitor struct {
-	repo          string
-	token         string
-	app           string
-	secret        string
-	receiver      string
-	receiverEmail string
+	repo  string
+	token string
+	send  func(string) error
 }
 
-func NewMonitor(repo, token, app, secret, receiver, receiverEmail string) Monitor {
+func NewMonitor(repo, token string, send func(text string) error) Monitor {
 	return Monitor{
-		repo:          repo,
-		token:         token,
-		app:           app,
-		secret:        secret,
-		receiver:      receiver,
-		receiverEmail: receiverEmail,
+		repo:  repo,
+		token: token,
+		send:  send,
 	}
 }
 
@@ -223,10 +215,6 @@ func (m Monitor) requestUser(cli *github.Client, id string) (name string, follow
 	return
 }
 
-func (m Monitor) send(text string) error {
-	return feishu.Send(m.app, m.secret, m.receiver, m.receiverEmail, text)
-}
-
 func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, error) {
 	repo, _, err := cli.Repositories.Get(context.Background(), owner, project)
 	if err != nil {
@@ -251,16 +239,18 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 				return 0, err
 			}
 
+			var builder strings.Builder
+			fmt.Fprintf(&builder, "unstar\nid: %s\n", k)
 			if len(name) > 0 {
-				if err := m.send(fmt.Sprintf("unstar\nid: %s\nname: %s\nfollowers: %d\nstarAt: %s\nstars: %d",
-					k, name, followers, v.Format(starAtFormat), *repo.StargazersCount)); err != nil {
-					logx.Error(err)
-				}
-			} else {
-				if err := m.send(fmt.Sprintf("unstar\nid: %s\nfollowers: %d\nstarAt: %s\nstars: %d",
-					k, followers, v.Format(starAtFormat), *repo.StargazersCount)); err != nil {
-					logx.Error(err)
-				}
+				fmt.Fprintf(&builder, "name: %s\n", name)
+			}
+			if followers > 0 {
+				fmt.Fprintf(&builder, "followers: %d\n", followers)
+			}
+			fmt.Fprintf(&builder, "starAt: %s\n", v.Format(starAtFormat))
+			fmt.Fprintf(&builder, "stars: %d", *repo.StargazersCount)
+			if err := m.send(builder.String()); err != nil {
+				logx.Error(err)
 			}
 		}
 
