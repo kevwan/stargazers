@@ -129,7 +129,9 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 	if len(name) > 0 {
 		fmt.Fprintf(&builder, "name: %s\n", name)
 	}
-	fmt.Fprintf(&builder, "followers: %d\n", followers)
+	if followers > 0 {
+		fmt.Fprintf(&builder, "followers: %d\n", followers)
+	}
 	fmt.Fprintf(&builder, "time: %s\n", gazer.StarredAt.Time.Local().Format(starAtFormat))
 	fmt.Fprintf(&builder, "today: %d", m.countsToday(total))
 	if err := m.send(builder.String()); err != nil {
