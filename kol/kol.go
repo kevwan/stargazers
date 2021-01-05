@@ -45,9 +45,15 @@ func main() {
 	if *top > 0 {
 		start = len(users) - *top
 	}
+	fmt.Printf("\n")
 	for _, user := range users[start:] {
-		fmt.Printf("id: %s, name: %s, followers: %d, starAt: %s\n",
-			*user.Login, *user.Name, *user.Followers, stargazers[*user.Login].Format(starAtFormat))
+		if user.Name != nil {
+			fmt.Printf("id: %s, name: %s, followers: %d, starAt: %s\n",
+				*user.Login, *user.Name, *user.Followers, stargazers[*user.Login].Format(starAtFormat))
+		} else {
+			fmt.Printf("id: %s, followers: %d, starAt: %s\n",
+				*user.Login, *user.Followers, stargazers[*user.Login].Format(starAtFormat))
+		}
 	}
 }
 

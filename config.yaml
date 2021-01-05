@@ -3,4 +3,5 @@ repo: <github repo like tal-tech/go-zero>
 feishu:
   appId: <app id>
   appSecret: <app secret>
-  receiver: <receiver's feishu email>
+  receiver: <receiver's feishu UserID>
+  receiver_email: <receiver's feishu Email>
