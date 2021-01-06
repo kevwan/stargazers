@@ -11,6 +11,7 @@
 !api
 
 .idea
+pro.yaml
 **/.DS_Store
 **/logs
 

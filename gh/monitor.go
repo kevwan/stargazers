@@ -116,6 +116,7 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 
 	var builder strings.Builder
 	fmt.Fprintf(&builder, "stars: %d\n", total)
+	fmt.Fprintf(&builder, "today: %d\n", m.countsToday(total))
 	fmt.Fprintf(&builder, "user: %s\n", *gazer.User.Login)
 	if len(name) > 0 {
 		fmt.Fprintf(&builder, "name: %s\n", name)
@@ -123,8 +124,7 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 	if followers > 0 {
 		fmt.Fprintf(&builder, "followers: %d\n", followers)
 	}
-	fmt.Fprintf(&builder, "time: %s\n", gazer.StarredAt.Time.Local().Format(starAtFormat))
-	fmt.Fprintf(&builder, "today: %d", m.countsToday(total))
+	fmt.Fprintf(&builder, "time: %s", gazer.StarredAt.Time.Local().Format(starAtFormat))
 	if err := m.send(builder.String()); err != nil {
 		logx.Error(err)
 	}
@@ -208,14 +208,15 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 
 			var builder strings.Builder
 			fmt.Fprintf(&builder, "unstar\nid: %s\n", k)
+			fmt.Fprintf(&builder, "stars: %d\n", *repo.StargazersCount)
+			fmt.Fprintf(&builder, "today: %d\n", m.countsToday(*repo.StargazersCount))
 			if len(name) > 0 {
 				fmt.Fprintf(&builder, "name: %s\n", name)
 			}
 			if followers > 0 {
 				fmt.Fprintf(&builder, "followers: %d\n", followers)
 			}
-			fmt.Fprintf(&builder, "starAt: %s\n", v.Format(starAtFormat))
-			fmt.Fprintf(&builder, "stars: %d", *repo.StargazersCount)
+			fmt.Fprintf(&builder, "starAt: %s", v.Format(starAtFormat))
 			if err := m.send(builder.String()); err != nil {
 				logx.Error(err)
 			}
