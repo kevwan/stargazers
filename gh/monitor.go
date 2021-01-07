@@ -207,9 +207,10 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 			}
 
 			var builder strings.Builder
-			fmt.Fprintf(&builder, "unstar\nid: %s\n", k)
+			fmt.Fprintln(&builder, "unstar")
 			fmt.Fprintf(&builder, "stars: %d\n", *repo.StargazersCount)
 			fmt.Fprintf(&builder, "today: %d\n", m.countsToday(*repo.StargazersCount))
+			fmt.Fprintf(&builder, "user: %s\n", k)
 			if len(name) > 0 {
 				fmt.Fprintf(&builder, "name: %s\n", name)
 			}
