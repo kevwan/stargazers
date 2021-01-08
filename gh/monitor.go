@@ -63,8 +63,7 @@ func (m Monitor) Start() error {
 		}
 
 		logx.Infof("stars: %d", count)
-		err = m.requestPage(cli, owner, project, count, count/pageSize+1)
-		if err != nil {
+		if err := m.requestPage(cli, owner, project, count, count/pageSize+1); err != nil {
 			if err := m.send(err.Error()); err != nil {
 				logx.Error(err)
 			}
@@ -161,9 +160,6 @@ func (m Monitor) requestNameFollowers(cli *github.Client, id string) (name strin
 	var user *github.User
 	user, err = RequestUser(cli, id)
 	if err != nil {
-		if err := m.send(err.Error()); err != nil {
-			logx.Error(err)
-		}
 		return
 	}
 
