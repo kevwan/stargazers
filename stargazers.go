@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"time"
 
 	"stargazers/feishu"
 	"stargazers/gh"
@@ -21,9 +22,10 @@ type (
 	}
 
 	Config struct {
-		Token  string `json:"token"`
-		Repo   string `json:"repo"`
-		Feishu Feishu `json:"feishu"`
+		Token    string        `json:"token"`
+		Repo     string        `json:"repo"`
+		Interval time.Duration `json:"interval,default=1m"`
+		Feishu   Feishu        `json:"feishu"`
 	}
 )
 
@@ -33,7 +35,7 @@ func main() {
 	var c Config
 	conf.MustLoad(*configFile, &c)
 
-	mon := gh.NewMonitor(c.Repo, c.Token, func(text string) error {
+	mon := gh.NewMonitor(c.Repo, c.Token, c.Interval, func(text string) error {
 		return feishu.Send(c.Feishu.AppId, c.Feishu.AppSecret, c.Feishu.Receiver, c.Feishu.ReceiverEmail, text)
 	})
 	log.Fatal(mon.Start())

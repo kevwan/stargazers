@@ -12,7 +12,6 @@ import (
 
 const (
 	pageSize     = 100
-	timeInterval = time.Minute
 	dayFormat    = "2006 01-02"
 	starAtFormat = "01-02 15:04:05"
 )
@@ -24,16 +23,18 @@ var (
 )
 
 type Monitor struct {
-	repo  string
-	token string
-	send  func(string) error
+	repo     string
+	token    string
+	interval time.Duration
+	send     func(string) error
 }
 
-func NewMonitor(repo, token string, send func(text string) error) Monitor {
+func NewMonitor(repo, token string, interval time.Duration, send func(text string) error) Monitor {
 	return Monitor{
-		repo:  repo,
-		token: token,
-		send:  send,
+		repo:     repo,
+		token:    token,
+		interval: interval,
+		send:     send,
 	}
 }
 
@@ -50,7 +51,7 @@ func (m Monitor) Start() error {
 		stargazers = stars
 	}
 
-	ticker := time.NewTicker(timeInterval)
+	ticker := time.NewTicker(m.interval)
 	defer ticker.Stop()
 	for range ticker.C {
 		logx.Info("requesting update")
