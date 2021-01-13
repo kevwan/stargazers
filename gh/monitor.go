@@ -125,9 +125,12 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 		fmt.Fprintf(&builder, "followers: %d\n", followers)
 	}
 	fmt.Fprintf(&builder, "time: %s", gazer.StarredAt.Time.Local().Format(starAtFormat))
-	if err := m.send(builder.String()); err != nil {
+	text := builder.String()
+	if err := m.send(text); err != nil {
 		logx.Error(err)
 	}
+
+	logx.Infof("star-event: %s", text)
 }
 
 func (m Monitor) requestPage(cli *github.Client, owner, project string, count, page int) error {
@@ -214,7 +217,7 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 			if followers > 0 {
 				fmt.Fprintf(&builder, "followers: %d\n", followers)
 			}
-			fmt.Fprintf(&builder, "starAt: %s", v.Format(starAtFormat))
+			fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(starAtFormat))
 			if err := m.send(builder.String()); err != nil {
 				logx.Error(err)
 			}
