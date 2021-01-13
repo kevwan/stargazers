@@ -54,21 +54,7 @@ func (m Monitor) Start() error {
 	ticker := time.NewTicker(m.interval)
 	defer ticker.Stop()
 	for range ticker.C {
-		logx.Info("requesting update")
-		count, err := m.totalCount(cli, owner, project)
-		if err != nil {
-			if err := m.send(err.Error()); err != nil {
-				logx.Error(err)
-			}
-			continue
-		}
-
-		logx.Infof("stars: %d", count)
-		if err := m.requestPage(cli, owner, project, count, count/pageSize+1); err != nil {
-			if err := m.send(err.Error()); err != nil {
-				logx.Error(err)
-			}
-		}
+		m.refresh(cli, owner, project)
 	}
 
 	return nil
@@ -94,6 +80,24 @@ func (m Monitor) countsToday(total int) int {
 	}
 
 	return count
+}
+
+func (m Monitor) refresh(cli *github.Client, owner, project string) {
+	count, err := m.totalCount(cli, owner, project)
+	if err != nil {
+		logx.Errorf("refresh - %s", err.Error())
+		if err := m.send(err.Error()); err != nil {
+			logx.Error(err)
+		}
+		return
+	}
+
+	logx.Infof("stars: %d", count)
+	if err := m.requestPage(cli, owner, project, count, count/pageSize+1); err != nil {
+		if err := m.send(err.Error()); err != nil {
+			logx.Error(err)
+		}
+	}
 }
 
 func (m Monitor) reportStarring(cli *github.Client, owner, project string, total int, gazer *github.Stargazer) {
