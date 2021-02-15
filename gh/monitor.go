@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"github.com/google/go-github/v33/github"
+	"github.com/tal-tech/go-zero/core/collection"
 	"github.com/tal-tech/go-zero/core/logx"
 )
 
 const (
 	pageSize     = 100
+	queueSize    = 100
 	dayFormat    = "2006 01-02"
 	starAtFormat = "01-02 15:04:05"
 )
@@ -20,6 +22,7 @@ var (
 	stargazers = make(map[string]time.Time)
 	dayStars   = make(map[string]int)
 	startTime  = time.Now()
+	fifo       = collection.NewQueue(queueSize)
 )
 
 type Monitor struct {
@@ -55,6 +58,7 @@ func (m Monitor) Start() error {
 	defer ticker.Stop()
 	for range ticker.C {
 		m.refresh(cli, owner, project)
+		m.report()
 	}
 
 	return nil
@@ -86,16 +90,28 @@ func (m Monitor) refresh(cli *github.Client, owner, project string) {
 	count, err := m.totalCount(cli, owner, project)
 	if err != nil {
 		logx.Errorf("refresh - %s", err.Error())
-		if err := m.send(err.Error()); err != nil {
-			logx.Error(err)
-		}
+		fifo.Put(err.Error())
 		return
 	}
 
 	logx.Infof("stars: %d", count)
 	if err := m.requestPage(cli, owner, project, count, count/pageSize+1); err != nil {
-		if err := m.send(err.Error()); err != nil {
+		logx.Error(err)
+		fifo.Put(err.Error())
+	}
+}
+
+func (m Monitor) report() {
+	for !fifo.Empty() {
+		val, ok := fifo.Take()
+		if !ok {
+			break
+		}
+
+		if err := m.send(val.(string)); err != nil {
+			fifo.Put(val)
 			logx.Error(err)
+			break
 		}
 	}
 }
@@ -107,9 +123,8 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 
 	name, followers, err := m.requestNameFollowers(cli, *gazer.User.Login)
 	if err != nil {
-		if err := m.send(err.Error()); err != nil {
-			logx.Error(err)
-		}
+		logx.Error(err)
+		fifo.Put(err.Error())
 		return
 	}
 
@@ -130,10 +145,7 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 	}
 	fmt.Fprintf(&builder, "time: %s", gazer.StarredAt.Time.Local().Format(starAtFormat))
 	text := builder.String()
-	if err := m.send(text); err != nil {
-		logx.Error(err)
-	}
-
+	fifo.Put(text)
 	logx.Infof("star-event: %s", text)
 }
 
@@ -220,9 +232,7 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 				fmt.Fprintf(&builder, "followers: %d\n", followers)
 			}
 			fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(starAtFormat))
-			if err := m.send(builder.String()); err != nil {
-				logx.Error(err)
-			}
+			fifo.Put(builder.String())
 		}
 
 		stargazers = stars
