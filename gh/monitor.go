@@ -90,14 +90,12 @@ func (m Monitor) refresh(cli *github.Client, owner, project string) {
 	count, err := m.totalCount(cli, owner, project)
 	if err != nil {
 		logx.Errorf("refresh - %s", err.Error())
-		fifo.Put(err.Error())
 		return
 	}
 
 	logx.Infof("stars: %d", count)
 	if err := m.requestPage(cli, owner, project, count, count/pageSize+1); err != nil {
 		logx.Error(err)
-		fifo.Put(err.Error())
 	}
 }
 
@@ -124,7 +122,6 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 	name, followers, err := m.requestNameFollowers(cli, *gazer.User.Login)
 	if err != nil {
 		logx.Error(err)
-		fifo.Put(err.Error())
 		return
 	}
 
