@@ -214,7 +214,7 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 			name, followers, err := m.requestNameFollowers(cli, k)
 			if err != nil {
 				logx.Error(err)
-				continue
+				return 0, err
 			}
 
 			var builder strings.Builder
