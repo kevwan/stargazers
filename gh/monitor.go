@@ -119,31 +119,38 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 		return
 	}
 
-	name, followers, err := m.requestNameFollowers(cli, *gazer.User.Login)
-	if err != nil {
-		logx.Error(err)
-		return
-	}
+	go func() {
+		for {
+			name, followers, err := m.requestNameFollowers(cli, *gazer.User.Login)
+			if err != nil {
+				logx.Error(err)
+				time.Sleep(time.Minute)
+				continue
+			}
 
-	// refresh count, because users might star after fetching count
-	if count, err := m.totalCount(cli, owner, project); err == nil {
-		total = count
-	}
+			// refresh count, because users might star after fetching count
+			if count, err := m.totalCount(cli, owner, project); err == nil {
+				total = count
+			}
 
-	var builder strings.Builder
-	fmt.Fprintf(&builder, "stars: %d\n", total)
-	fmt.Fprintf(&builder, "today: %d\n", m.countsToday(total))
-	fmt.Fprintf(&builder, "user: %s\n", *gazer.User.Login)
-	if len(name) > 0 {
-		fmt.Fprintf(&builder, "name: %s\n", name)
-	}
-	if followers > 0 {
-		fmt.Fprintf(&builder, "followers: %d\n", followers)
-	}
-	fmt.Fprintf(&builder, "time: %s", gazer.StarredAt.Time.Local().Format(starAtFormat))
-	text := builder.String()
-	fifo.Put(text)
-	logx.Infof("star-event: %s", text)
+			var builder strings.Builder
+			fmt.Fprintf(&builder, "stars: %d\n", total)
+			fmt.Fprintf(&builder, "today: %d\n", m.countsToday(total))
+			fmt.Fprintf(&builder, "user: %s\n", *gazer.User.Login)
+			if len(name) > 0 {
+				fmt.Fprintf(&builder, "name: %s\n", name)
+			}
+			if followers > 0 {
+				fmt.Fprintf(&builder, "followers: %d\n", followers)
+			}
+			fmt.Fprintf(&builder, "time: %s", gazer.StarredAt.Time.Local().Format(starAtFormat))
+			text := builder.String()
+			fifo.Put(text)
+			logx.Infof("star-event: %s", text)
+
+			return
+		}
+	}()
 }
 
 func (m Monitor) requestPage(cli *github.Client, owner, project string, count, page int) error {
@@ -214,7 +221,7 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 			name, followers, err := m.requestNameFollowers(cli, k)
 			if err != nil {
 				logx.Error(err)
-				return 0, err
+				continue
 			}
 
 			var builder strings.Builder
