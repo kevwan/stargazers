@@ -119,14 +119,13 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 		return
 	}
 
-	var name string
-	var followers int
-	reqFn := func() error {
-		var err error
-		name, followers, err = m.requestNameFollowers(cli, *gazer.User.Login)
-		return err
-	}
-	reportFn := func() {
+	ensureOnce(func() error {
+		name, followers, err := m.requestNameFollowers(cli, *gazer.User.Login)
+		if err != nil {
+			logx.Error(err)
+			return err
+		}
+
 		// refresh count, because users might star after fetching count
 		if count, err := m.totalCount(cli, owner, project); err == nil {
 			total = count
@@ -146,24 +145,9 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 		text := builder.String()
 		fifo.Put(text)
 		logx.Infof("star-event: %s", text)
-	}
 
-	if err := reqFn(); err != nil {
-		logx.Error(err)
-		go func() {
-			for {
-				time.Sleep(time.Minute)
-				if err := reqFn(); err != nil {
-					continue
-				}
-
-				reportFn()
-				return
-			}
-		}()
-	} else {
-		reportFn()
-	}
+		return nil
+	}, time.Minute)
 }
 
 func (m Monitor) requestPage(cli *github.Client, owner, project string, count, page int) error {
@@ -257,4 +241,24 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 	dayStars[day] = *repo.StargazersCount
 
 	return *repo.StargazersCount, nil
+}
+
+func ensureOnce(fn func() error, interval time.Duration) {
+	if err := fn(); err == nil {
+		return
+	}
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := fn(); err == nil {
+					return
+				}
+			}
+		}
+	}()
 }
