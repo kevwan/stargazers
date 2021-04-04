@@ -94,7 +94,7 @@ func (m Monitor) refresh(cli *github.Client, owner, project string) {
 	}
 
 	logx.Infof("stars: %d", count)
-	if err := m.requestPage(cli, owner, project, count, count/pageSize+1); err != nil {
+	if err := m.requestPage(cli, owner, project, count, (count+pageSize-1)/pageSize); err != nil {
 		logx.Error(err)
 	}
 }
