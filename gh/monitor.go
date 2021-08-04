@@ -15,7 +15,7 @@ const (
 	pageSize     = 100
 	queueSize    = 100
 	dayFormat    = "2006 01-02"
-	starAtFormat = "01-02 15:04:05"
+	starAtFormat = "2006 01-02 15:04:05"
 )
 
 var (

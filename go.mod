@@ -6,10 +6,11 @@ require (
 	github.com/faabiosr/cachego v0.16.1 // indirect
 	github.com/fastwego/feishu v1.0.0-beta.3
 	github.com/google/go-github/v33 v33.0.0
-	github.com/schollz/progressbar/v3 v3.7.3
-	github.com/stretchr/testify v1.5.1
-	github.com/tal-tech/go-zero v1.1.6
-	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
-	golang.org/x/sys v0.0.0-20201231184435-2d18734c6014 // indirect
-	google.golang.org/appengine v1.6.1 // indirect
+	github.com/schollz/progressbar/v3 v3.8.2
+	github.com/stretchr/testify v1.7.0
+	github.com/tal-tech/go-zero v1.1.9
+	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
+	golang.org/x/net v0.0.0-20210726213435-c6fcb2dbf985 // indirect
+	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
+	google.golang.org/appengine v1.6.7 // indirect
 )
