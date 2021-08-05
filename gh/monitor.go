@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	pageSize     = 100
-	queueSize    = 100
-	dayFormat    = "2006 01-02"
-	starAtFormat = "2006 01-02 15:04:05"
+	pageSize       = 100
+	queueSize      = 100
+	dayFormat      = "2006 01-02"
+	starAtFormat   = "01-02 15:04:05"
+	unstarAtFormat = "2006 01-02 15:04:05"
 )
 
 var (
@@ -232,7 +233,7 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 			if followers > 0 {
 				fmt.Fprintf(&builder, "followers: %d\n", followers)
 			}
-			fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(starAtFormat))
+			fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
 			fifo.Put(builder.String())
 		}
 
