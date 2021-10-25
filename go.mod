@@ -8,6 +8,7 @@ require (
 	github.com/google/go-github/v33 v33.0.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/schollz/progressbar/v3 v3.8.2
+	github.com/slack-go/slack v0.9.5
 	github.com/stretchr/testify v1.7.0
 	github.com/tal-tech/go-zero v1.2.1
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
