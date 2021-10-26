@@ -1,3 +1,39 @@
 # stargazers
 
-发送star通知到飞书。
+## Features
+
+- monitor the star events of the GitHub repo
+- send the notifications to Slack or Lark
+
+## How to use
+
+Run `stargazers`:
+
+`stargazers -f config.yaml`
+
+`config.yaml` looks like:
+
+```yaml
+token: <github token>
+repo: <github repo like zeromicro/go-zero>
+lark:
+  appId: <app id>
+  appSecret: <app secret>
+  receiver: <receiver's lark UserID>
+  receiver_email: <receiver's lark Email>
+slack:
+  token: <oauth token>
+  channel: <channel>
+```
+
+The notification message looks like:
+
+```
+stars: 12157
+today: 27
+user: <user>
+name: <name>
+followers: 6
+time: 10-26 22:52:56
+```
+

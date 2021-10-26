@@ -41,6 +41,7 @@ func Send(token, channel, message string) error {
 	}
 
 	r.Header.Set("Authorization", "Bearer "+token)
+	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	resp, err := new(http.Client).Do(r)
 	if err != nil {
 		return err
