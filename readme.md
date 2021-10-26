@@ -7,6 +7,10 @@
 
 ## How to use
 
+For Lark, create a bot called like `stargazers`, and use this bot to send notifications to you.
+
+For Slack, create an app called like `stargazers`, and add this app into an channel.
+
 Run `stargazers`:
 
 `stargazers -f config.yaml`
