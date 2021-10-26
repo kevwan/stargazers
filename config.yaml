@@ -1,7 +1,10 @@
 token: <github token>
-repo: <github repo like tal-tech/go-zero>
-feishu:
+repo: <github repo like zeromicro/go-zero>
+lark:
   appId: <app id>
   appSecret: <app secret>
-  receiver: <receiver's feishu UserID>
-  receiver_email: <receiver's feishu Email>
+  receiver: <receiver's lark UserID>
+  receiver_email: <receiver's lark Email>
+slack:
+  token: <oauth token>
+  channel: <channel>

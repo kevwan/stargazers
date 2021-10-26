@@ -4,8 +4,8 @@ import (
 	"flag"
 	"time"
 
-	"stargazers/feishu"
 	"stargazers/gh"
+	"stargazers/lark"
 	"stargazers/slack"
 
 	"github.com/tal-tech/go-zero/core/conf"
@@ -16,11 +16,11 @@ var configFile = flag.String("f", "config.yaml", "the config file")
 
 type (
 	Config struct {
-		Token    string         `json:"token"`
-		Repo     string         `json:"repo"`
-		Interval time.Duration  `json:"interval,default=1m"`
-		Feishu   *feishu.Feishu `json:"feishu,optional"`
-		Slack    *slack.Slack   `json:"slack,optional"`
+		Token    string        `json:"token"`
+		Repo     string        `json:"repo"`
+		Interval time.Duration `json:"interval,default=1m"`
+		Lark     *lark.Lark    `json:"lark,optional"`
+		Slack    *slack.Slack  `json:"slack,optional"`
 	}
 
 	SendFunc func(message string) error
@@ -29,13 +29,13 @@ type (
 func getSenders(c Config) []SendFunc {
 	var senders []SendFunc
 
-	if c.Feishu != nil {
+	if c.Lark != nil {
 		senders = append(senders, func(message string) error {
-			return feishu.Send(
-				c.Feishu.AppId,
-				c.Feishu.AppSecret,
-				c.Feishu.Receiver,
-				c.Feishu.ReceiverEmail,
+			return lark.Send(
+				c.Lark.AppId,
+				c.Lark.AppSecret,
+				c.Lark.Receiver,
+				c.Lark.ReceiverEmail,
 				message,
 			)
 		})

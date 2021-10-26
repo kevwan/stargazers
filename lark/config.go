@@ -1,6 +1,6 @@
-package feishu
+package lark
 
-type Feishu struct {
+type Lark struct {
 	AppId         string `json:"appId"`
 	AppSecret     string `json:"appSecret"`
 	Receiver      string `json:"receiver,optional"`
