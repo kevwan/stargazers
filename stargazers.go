@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"log"
 	"time"
 
 	"stargazers/gh"
@@ -23,12 +24,10 @@ type (
 		Lark     *lark.Lark    `json:"lark,optional"`
 		Slack    *slack.Slack  `json:"slack,optional"`
 	}
-
-	SendFunc func(message string) error
 )
 
-func getSenders(c Config) []SendFunc {
-	var senders []SendFunc
+func getSenders(c Config) []func(string) error {
+	var senders []func(string) error
 
 	if c.Lark != nil {
 		senders = append(senders, func(message string) error {
@@ -61,15 +60,10 @@ func main() {
 	var c Config
 	conf.MustLoad(*configFile, &c)
 	senders := getSenders(c)
+	if len(senders) == 0 {
+		log.Fatal("Set either Lark or Slack to receive notifications.")
+	}
 
-	mon := gh.NewMonitor(c.Repo, c.Token, c.Interval, func(text string) error {
-		for _, sender := range senders {
-			if err := sender(text); err != nil {
-				logx.Error(err)
-			}
-		}
-
-		return nil
-	})
+	mon := gh.NewMonitor(c.Repo, c.Token, c.PageSize, c.Interval, senders)
 	logx.Must(mon.Start())
 }
