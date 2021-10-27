@@ -1,5 +1,6 @@
 token: <github token>
 repo: <github repo like zeromicro/go-zero>
+pageSize: <page size, default 100>
 lark:
   appId: <app id>
   appSecret: <app secret>

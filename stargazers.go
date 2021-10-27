@@ -18,6 +18,7 @@ type (
 	Config struct {
 		Token    string        `json:"token"`
 		Repo     string        `json:"repo"`
+		PageSize int           `json:"pageSize,default=100"`
 		Interval time.Duration `json:"interval,default=1m"`
 		Lark     *lark.Lark    `json:"lark,optional"`
 		Slack    *slack.Slack  `json:"slack,optional"`
@@ -64,7 +65,7 @@ func main() {
 	mon := gh.NewMonitor(c.Repo, c.Token, c.Interval, func(text string) error {
 		for _, sender := range senders {
 			if err := sender(text); err != nil {
-				return err
+				logx.Error(err)
 			}
 		}
 

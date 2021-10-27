@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	pageSize       = 100
 	queueSize      = 100
 	dayFormat      = "2006 01-02"
 	starAtFormat   = "01-02 15:04:05"
@@ -29,14 +28,16 @@ var (
 type Monitor struct {
 	repo     string
 	token    string
+	pageSize int
 	interval time.Duration
 	send     func(string) error
 }
 
-func NewMonitor(repo, token string, interval time.Duration, send func(text string) error) Monitor {
+func NewMonitor(repo, token string, pageSize int, interval time.Duration, send func(text string) error) Monitor {
 	return Monitor{
 		repo:     repo,
 		token:    token,
+		pageSize: pageSize,
 		interval: interval,
 		send:     send,
 	}
@@ -95,7 +96,7 @@ func (m Monitor) refresh(cli *github.Client, owner, project string) {
 	}
 
 	logx.Infof("stars: %d", count)
-	if err := m.requestPage(cli, owner, project, count, (count+pageSize-1)/pageSize); err != nil {
+	if err := m.requestPage(cli, owner, project, count, (count+m.pageSize-1)/m.pageSize); err != nil {
 		logx.Error(err)
 	}
 }
@@ -155,7 +156,7 @@ func (m Monitor) requestPage(cli *github.Client, owner, project string, count, p
 	gazers, resp, err := cli.Activity.ListStargazers(context.Background(),
 		owner, project, &github.ListOptions{
 			Page:    page,
-			PerPage: pageSize,
+			PerPage: m.pageSize,
 		})
 	if err != nil {
 		return fmt.Errorf("failed to fetch stargazers, error: %v", err)
