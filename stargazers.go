@@ -22,15 +22,13 @@ type (
 		PageSize int           `json:"pageSize,default=100"`
 		Interval time.Duration `json:"interval,default=1m"`
 		Lark     *lark.Lark    `json:"lark,optional"`
-		Slack    *slack.Slack  `json:"slack,optional"`
+		Slack    *slack.Slack  `json:"slack,optional=!lark"`
 	}
 )
 
-func getSenders(c Config) []func(string) error {
-	var senders []func(string) error
-
+func getSenders(c Config) func(string) error {
 	if c.Lark != nil {
-		senders = append(senders, func(message string) error {
+		return func(message string) error {
 			return lark.Send(
 				c.Lark.AppId,
 				c.Lark.AppSecret,
@@ -38,20 +36,20 @@ func getSenders(c Config) []func(string) error {
 				c.Lark.ReceiverEmail,
 				message,
 			)
-		})
+		}
 	}
 
 	if c.Slack != nil {
-		senders = append(senders, func(message string) error {
+		return func(message string) error {
 			return slack.Send(
 				c.Slack.Token,
 				c.Slack.Channel,
 				message,
 			)
-		})
+		}
 	}
 
-	return senders
+	return nil
 }
 
 func main() {
@@ -59,11 +57,11 @@ func main() {
 
 	var c Config
 	conf.MustLoad(*configFile, &c)
-	senders := getSenders(c)
-	if len(senders) == 0 {
+	sender := getSenders(c)
+	if sender == nil {
 		log.Fatal("Set either Lark or Slack to receive notifications.")
 	}
 
-	mon := gh.NewMonitor(c.Repo, c.Token, c.PageSize, c.Interval, senders)
+	mon := gh.NewMonitor(c.Repo, c.Token, c.PageSize, c.Interval, sender)
 	logx.Must(mon.Start())
 }

@@ -31,11 +31,11 @@ type Monitor struct {
 	token    string
 	pageSize int
 	interval time.Duration
-	senders  []func(string) error
+	sender   func(string) error
 }
 
 func NewMonitor(repo, token string, pageSize int, interval time.Duration,
-	senders []func(text string) error) Monitor {
+	sender func(text string) error) Monitor {
 	if pageSize < minPageSize {
 		pageSize = minPageSize
 	}
@@ -45,7 +45,7 @@ func NewMonitor(repo, token string, pageSize int, interval time.Duration,
 		token:    token,
 		pageSize: pageSize,
 		interval: interval,
-		senders:  senders,
+		sender:   sender,
 	}
 }
 
@@ -152,12 +152,9 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 		}
 		fmt.Fprintf(&builder, "time: %s", gazer.StarredAt.Time.Local().Format(starAtFormat))
 		text := builder.String()
-		for _, sender := range m.senders {
-			sender := sender
-			fifo.Put(func() error {
-				return sender(text)
-			})
-		}
+		fifo.Put(func() error {
+			return m.sender(text)
+		})
 		logx.Infof("star-event: %s", text)
 
 		return nil
@@ -248,12 +245,9 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 			}
 			fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
 			val := builder.String()
-			for _, sender := range m.senders {
-				sender := sender
-				fifo.Put(func() error {
-					return sender(val)
-				})
-			}
+			fifo.Put(func() error {
+				return m.sender(val)
+			})
 		}
 
 		stargazers = stars
