@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v33/github"
+	"github.com/google/go-github/v39/github"
 	"github.com/tal-tech/go-zero/core/logx"
 	"golang.org/x/oauth2"
 )
@@ -32,7 +32,7 @@ func ParseRepo(repo string) (owner, project string, err error) {
 	return
 }
 
-func RequestAll(cli *github.Client, owner, project string, pageSize int) (map[string]time.Time, error) {
+func RequestAll(cli *github.Client, owner, project string) (map[string]time.Time, error) {
 	stars := make(map[string]time.Time)
 	var page = 1
 	for {

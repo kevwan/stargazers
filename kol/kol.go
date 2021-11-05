@@ -8,7 +8,7 @@ import (
 
 	"stargazers/gh"
 
-	"github.com/google/go-github/v33/github"
+	"github.com/google/go-github/v39/github"
 	"github.com/schollz/progressbar/v3"
 	"github.com/tal-tech/go-zero/core/fx"
 	"github.com/tal-tech/go-zero/core/logx"

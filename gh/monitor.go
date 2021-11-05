@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v33/github"
+	"github.com/google/go-github/v39/github"
 	"github.com/tal-tech/go-zero/core/collection"
 	"github.com/tal-tech/go-zero/core/logx"
 )
 
 const (
-	minPageSize    = 100
+	pageSize       = 100
 	queueSize      = 100
 	dayFormat      = "2006 01-02"
 	starAtFormat   = "01-02 15:04:05"
@@ -29,23 +29,16 @@ var (
 type Monitor struct {
 	repo     string
 	token    string
-	pageSize int
 	interval time.Duration
-	sender   func(string) error
+	send     func(string) error
 }
 
-func NewMonitor(repo, token string, pageSize int, interval time.Duration,
-	sender func(text string) error) Monitor {
-	if pageSize < minPageSize {
-		pageSize = minPageSize
-	}
-
+func NewMonitor(repo, token string, interval time.Duration, send func(text string) error) Monitor {
 	return Monitor{
 		repo:     repo,
 		token:    token,
-		pageSize: pageSize,
 		interval: interval,
-		sender:   sender,
+		send:     send,
 	}
 }
 
@@ -56,7 +49,7 @@ func (m Monitor) Start() error {
 	}
 
 	cli := CreateClient(m.token)
-	if stars, err := RequestAll(cli, owner, project, m.pageSize); err != nil {
+	if stars, err := RequestAll(cli, owner, project); err != nil {
 		return err
 	} else {
 		stargazers = stars
@@ -102,7 +95,7 @@ func (m Monitor) refresh(cli *github.Client, owner, project string) {
 	}
 
 	logx.Infof("stars: %d", count)
-	if err := m.requestPage(cli, owner, project, count, (count+m.pageSize-1)/m.pageSize); err != nil {
+	if err := m.requestPage(cli, owner, project, count, (count+pageSize-1)/pageSize); err != nil {
 		logx.Error(err)
 	}
 }
@@ -114,8 +107,7 @@ func (m Monitor) report() {
 			break
 		}
 
-		send := val.(func() error)
-		if err := send(); err != nil {
+		if err := m.send(val.(string)); err != nil {
 			fifo.Put(val)
 			logx.Error(err)
 			break
@@ -152,9 +144,7 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 		}
 		fmt.Fprintf(&builder, "time: %s", gazer.StarredAt.Time.Local().Format(starAtFormat))
 		text := builder.String()
-		fifo.Put(func() error {
-			return m.sender(text)
-		})
+		fifo.Put(text)
 		logx.Infof("star-event: %s", text)
 
 		return nil
@@ -165,7 +155,7 @@ func (m Monitor) requestPage(cli *github.Client, owner, project string, count, p
 	gazers, resp, err := cli.Activity.ListStargazers(context.Background(),
 		owner, project, &github.ListOptions{
 			Page:    page,
-			PerPage: m.pageSize,
+			PerPage: pageSize,
 		})
 	if err != nil {
 		return fmt.Errorf("failed to fetch stargazers, error: %v", err)
@@ -216,7 +206,7 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 	day := time.Now().Format(dayFormat)
 	prev := dayStars[day]
 	if *repo.StargazersCount < prev {
-		stars, err := RequestAll(cli, owner, project, m.pageSize)
+		stars, err := RequestAll(cli, owner, project)
 		if err != nil {
 			return 0, err
 		}
@@ -244,10 +234,7 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 				fmt.Fprintf(&builder, "followers: %d\n", followers)
 			}
 			fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
-			val := builder.String()
-			fifo.Put(func() error {
-				return m.sender(val)
-			})
+			fifo.Put(builder.String())
 		}
 
 		stargazers = stars
