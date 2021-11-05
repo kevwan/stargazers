@@ -20,6 +20,7 @@ Run `stargazers`:
 ```yaml
 token: <github token>
 repo: <github repo like zeromicro/go-zero>
+interval: 1m
 lark:
   appId: <app id>
   appSecret: <app secret>
