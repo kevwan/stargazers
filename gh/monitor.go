@@ -3,6 +3,7 @@ package gh
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -219,6 +220,22 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 			name, followers, err := m.requestNameFollowers(cli, k)
 			if err != nil {
 				logx.Error(err)
+
+				switch ve := err.(type) {
+				case *github.ErrorResponse:
+					if ve.Response.StatusCode != http.StatusNotFound {
+						break
+					}
+
+					var builder strings.Builder
+					fmt.Fprintln(&builder, "account deleted")
+					fmt.Fprintf(&builder, "stars: %d\n", *repo.StargazersCount)
+					fmt.Fprintf(&builder, "today: %d\n", m.countsToday(*repo.StargazersCount))
+					fmt.Fprintf(&builder, "user: %s\n", k)
+					fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
+					fifo.Put(builder.String())
+				}
+
 				continue
 			}
 
