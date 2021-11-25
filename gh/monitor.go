@@ -28,35 +28,31 @@ var (
 )
 
 type Monitor struct {
-	repo     string
-	token    string
-	interval time.Duration
-	send     func(string) error
+	cfg  Config
+	send func(string) error
 }
 
-func NewMonitor(repo, token string, interval time.Duration, send func(text string) error) Monitor {
+func NewMonitor(cfg Config, send func(text string) error) Monitor {
 	return Monitor{
-		repo:     repo,
-		token:    token,
-		interval: interval,
-		send:     send,
+		cfg:  cfg,
+		send: send,
 	}
 }
 
 func (m Monitor) Start() error {
-	owner, project, err := ParseRepo(m.repo)
+	owner, project, err := ParseRepo(m.cfg.Repo)
 	if err != nil {
 		return err
 	}
 
-	cli := CreateClient(m.token)
+	cli := CreateClient(m.cfg.Token)
 	if stars, err := RequestAll(cli, owner, project); err != nil {
 		return err
 	} else {
 		stargazers = stars
 	}
 
-	ticker := time.NewTicker(m.interval)
+	ticker := time.NewTicker(m.cfg.Interval)
 	defer ticker.Stop()
 	for range ticker.C {
 		m.refresh(cli, owner, project)
@@ -86,6 +82,29 @@ func (m Monitor) countsToday(total int) int {
 	}
 
 	return count
+}
+
+func (m Monitor) handleResponseError(err error, repo *github.Repository, k string, v time.Time) {
+	logx.Error(err)
+
+	if !m.cfg.Verbose {
+		return
+	}
+
+	switch ve := err.(type) {
+	case *github.ErrorResponse:
+		if ve.Response.StatusCode != http.StatusNotFound {
+			break
+		}
+
+		var builder strings.Builder
+		fmt.Fprintln(&builder, "account deleted")
+		fmt.Fprintf(&builder, "stars: %d\n", *repo.StargazersCount)
+		fmt.Fprintf(&builder, "today: %d\n", m.countsToday(*repo.StargazersCount))
+		fmt.Fprintf(&builder, "user: %s\n", k)
+		fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
+		fifo.Put(builder.String())
+	}
 }
 
 func (m Monitor) refresh(cli *github.Client, owner, project string) {
@@ -198,6 +217,22 @@ func (m Monitor) requestNameFollowers(cli *github.Client, id string) (name strin
 	return
 }
 
+func (m Monitor) reportUnstar(repo *github.Repository, id string, name string, followers int, v time.Time) {
+	var builder strings.Builder
+	fmt.Fprintln(&builder, "unstar")
+	fmt.Fprintf(&builder, "stars: %d\n", *repo.StargazersCount)
+	fmt.Fprintf(&builder, "today: %d\n", m.countsToday(*repo.StargazersCount))
+	fmt.Fprintf(&builder, "user: %s\n", id)
+	if len(name) > 0 {
+		fmt.Fprintf(&builder, "name: %s\n", name)
+	}
+	if followers > 0 {
+		fmt.Fprintf(&builder, "followers: %d\n", followers)
+	}
+	fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
+	fifo.Put(builder.String())
+}
+
 func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, error) {
 	repo, _, err := cli.Repositories.Get(context.Background(), owner, project)
 	if err != nil {
@@ -219,39 +254,11 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 
 			name, followers, err := m.requestNameFollowers(cli, k)
 			if err != nil {
-				logx.Error(err)
-
-				switch ve := err.(type) {
-				case *github.ErrorResponse:
-					if ve.Response.StatusCode != http.StatusNotFound {
-						break
-					}
-
-					var builder strings.Builder
-					fmt.Fprintln(&builder, "account deleted")
-					fmt.Fprintf(&builder, "stars: %d\n", *repo.StargazersCount)
-					fmt.Fprintf(&builder, "today: %d\n", m.countsToday(*repo.StargazersCount))
-					fmt.Fprintf(&builder, "user: %s\n", k)
-					fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
-					fifo.Put(builder.String())
-				}
-
+				m.handleResponseError(err, repo, k, v)
 				continue
 			}
 
-			var builder strings.Builder
-			fmt.Fprintln(&builder, "unstar")
-			fmt.Fprintf(&builder, "stars: %d\n", *repo.StargazersCount)
-			fmt.Fprintf(&builder, "today: %d\n", m.countsToday(*repo.StargazersCount))
-			fmt.Fprintf(&builder, "user: %s\n", k)
-			if len(name) > 0 {
-				fmt.Fprintf(&builder, "name: %s\n", name)
-			}
-			if followers > 0 {
-				fmt.Fprintf(&builder, "followers: %d\n", followers)
-			}
-			fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
-			fifo.Put(builder.String())
+			m.reportUnstar(repo, k, name, followers, v)
 		}
 
 		stargazers = stars

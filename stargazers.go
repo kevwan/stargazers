@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"time"
 
 	"stargazers/gh"
 	"stargazers/lark"
@@ -16,11 +15,9 @@ import (
 var configFile = flag.String("f", "config.yaml", "the config file")
 
 type Config struct {
-	Token    string        `json:"token"`
-	Repo     string        `json:"repo"`
-	Interval time.Duration `json:"interval,default=1m"`
-	Lark     *lark.Lark    `json:"lark,optional"`
-	Slack    *slack.Slack  `json:"slack,optional=!lark"`
+	gh.Config
+	Lark  *lark.Lark   `json:"lark,optional"`
+	Slack *slack.Slack `json:"slack,optional=!lark"`
 }
 
 func getSender(c Config) func(string) error {
@@ -59,6 +56,6 @@ func main() {
 		log.Fatal("Set either Lark or Slack to receive notifications.")
 	}
 
-	mon := gh.NewMonitor(c.Repo, c.Token, c.Interval, sender)
+	mon := gh.NewMonitor(c.Config, sender)
 	logx.Must(mon.Start())
 }
