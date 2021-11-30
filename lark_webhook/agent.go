@@ -45,7 +45,6 @@ func Send(url, message string) error {
 		return err
 	}
 
-	logx.Info("rsp is:", rsp)
 	if rsp.StatusCode != 0 {
 		return errors.New(rsp.StatusMessage)
 	}
