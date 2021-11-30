@@ -6,6 +6,8 @@ lark:
   appSecret: <app secret>
   receiver: <receiver's lark UserID>
   receiver_email: <receiver's lark Email>
+lark_webhook:
+  url: <the webhook url for the robot>
 slack:
   token: <oauth token>
   channel: <channel>

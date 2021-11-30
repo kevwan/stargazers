@@ -6,6 +6,7 @@ import (
 
 	"stargazers/gh"
 	"stargazers/lark"
+	"stargazers/lark_webhook"
 	"stargazers/slack"
 
 	"github.com/tal-tech/go-zero/core/conf"
@@ -16,16 +17,16 @@ var configFile = flag.String("f", "config.yaml", "the config file")
 
 type Config struct {
 	gh.Config
-	Lark  *lark.Lark   `json:"lark,optional"`
-	Slack *slack.Slack `json:"slack,optional=!lark"`
+	Lark        *lark.Lark                `json:"lark,optional"`
+	LarkWebhook *lark_webhook.LarkWebhook `json:"lark_webhook,optional"`
+	Slack       *slack.Slack              `json:"slack,optional"`
 }
 
 func getSender(c Config) func(string) error {
 	if c.Lark != nil {
+		app := lark.NewApp(c.Lark.AppId, c.Lark.AppSecret)
 		return func(message string) error {
-			return lark.Send(
-				c.Lark.AppId,
-				c.Lark.AppSecret,
+			return app.Send(
 				c.Lark.Receiver,
 				c.Lark.ReceiverEmail,
 				message,
@@ -33,6 +34,11 @@ func getSender(c Config) func(string) error {
 		}
 	}
 
+	if c.LarkWebhook != nil {
+		return func(message string) error {
+			return lark_webhook.Send(c.LarkWebhook.Url, message)
+		}
+	}
 	if c.Slack != nil {
 		return func(message string) error {
 			return slack.Send(
@@ -53,9 +59,8 @@ func main() {
 	conf.MustLoad(*configFile, &c)
 	sender := getSender(c)
 	if sender == nil {
-		log.Fatal("Set either Lark or Slack to receive notifications.")
+		log.Fatal("Set either lark, lark_webhook or slack to receive notifications.")
 	}
-
 	mon := gh.NewMonitor(c.Config, sender)
 	logx.Must(mon.Start())
 }

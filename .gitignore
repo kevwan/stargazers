@@ -9,9 +9,10 @@
 # Unignore all dirs
 !*/
 !api
-
+.vscode
 .idea
 pro.yaml
+config.yaml
 **/.DS_Store
 **/logs
 
