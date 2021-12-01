@@ -1,4 +1,4 @@
-package lark_webhook
+package webhook
 
 import (
 	"bytes"
@@ -10,12 +10,10 @@ import (
 	"github.com/tal-tech/go-zero/core/logx"
 )
 
-type (
-	Response struct {
-		StatusCode    int    `json:"StatusCode"`
-		StatusMessage string `json:"StatusMessage"`
-	}
-)
+type Response struct {
+	StatusCode    int    `json:"StatusCode"`
+	StatusMessage string `json:"StatusMessage"`
+}
 
 func Send(url, message string) error {
 	slackMsg := map[string]interface{}{

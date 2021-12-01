@@ -5,4 +5,5 @@ type Lark struct {
 	AppSecret     string `json:"appSecret"`
 	Receiver      string `json:"receiver,optional"`
 	ReceiverEmail string `json:"receiver_email,optional=!receiver"`
+	WebhookUrl    string `json:"webhook_url,optional"`
 }

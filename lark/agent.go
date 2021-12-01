@@ -13,15 +13,16 @@ type (
 	App struct {
 		app *feishu.App
 	}
-	content struct {
-		Text string `json:"text"`
-	}
 
 	Message struct {
 		UserId  string  `json:"user_id"`
 		Email   string  `json:"email"`
 		MsgType string  `json:"msg_type"`
 		Content content `json:"content"`
+	}
+
+	content struct {
+		Text string `json:"text"`
 	}
 )
 
@@ -46,6 +47,7 @@ func (app *App) Send(receiver, receiverEmail, text string) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = message.Send(app.app, payload)
 	return err
 }
