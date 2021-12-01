@@ -9,9 +9,10 @@ import (
 
 const messageType = "text"
 
-var App *feishu.App
-
 type (
+	App struct {
+		app *feishu.App
+	}
 	content struct {
 		Text string `json:"text"`
 	}
@@ -24,11 +25,16 @@ type (
 	}
 )
 
-func Send(app, secret, receiver, receiverEmail, text string) error {
-	App = feishu.NewApp(feishu.AppConfig{
-		AppId:     app,
-		AppSecret: secret,
-	})
+func NewApp(appid, secret string) *App {
+	return &App{
+		app: feishu.NewApp(feishu.AppConfig{
+			AppId:     appid,
+			AppSecret: secret,
+		}),
+	}
+}
+
+func (app *App) Send(receiver, receiverEmail, text string) error {
 	payload, err := json.Marshal(Message{
 		UserId:  receiver,
 		Email:   receiverEmail,
@@ -40,7 +46,6 @@ func Send(app, secret, receiver, receiverEmail, text string) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = message.Send(App, payload)
+	_, err = message.Send(app.app, payload)
 	return err
 }
