@@ -3,6 +3,7 @@
 ## Features
 
 - monitor the star events of the GitHub repo
+- monitor the trending event of the GitHub repo
 - send the notifications to Slack or Lark
 
 ## How to use
