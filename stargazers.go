@@ -18,9 +18,9 @@ var configFile = flag.String("f", "config.yaml", "the config file")
 
 type Config struct {
 	gh.Config
-	Trending string       `json:"trending,default=Go"`
-	Lark     *lark.Lark   `json:"lark,optional"`
-	Slack    *slack.Slack `json:"slack,optional"`
+	Trending trending.Trending `json:"trending,optional"`
+	Lark     *lark.Lark        `json:"lark,optional"`
+	Slack    *slack.Slack      `json:"slack,optional"`
 }
 
 func getSender(c Config) func(string) error {

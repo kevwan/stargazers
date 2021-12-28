@@ -2,7 +2,6 @@ package trending
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -10,30 +9,43 @@ import (
 	"github.com/tal-tech/go-zero/core/logx"
 )
 
-const checkInterval = time.Minute * 10
+const (
+	checkInterval = time.Minute * 10
+	dailyRange    = "daily"
+	weeklyRange   = "weekly"
+	monthlyRange  = "monthly"
+)
 
 type (
+	Trending struct {
+		Language   string   `json:"language,default=Go"`
+		DateRanges []string `json:"dateRanges"`
+	}
+
 	Monitor struct {
-		name     string
-		author   string
-		langs    []string
-		send     func(string) error
-		previous []Position
+		name       string
+		author     string
+		langs      []string
+		dateRanges []string
+		send       func(string) error
+		previous   []Position
 	}
 
 	Position struct {
-		Lang string
-		Pos  int
+		Lang  string
+		Range string
+		Pos   int
 	}
 )
 
-func NewMonitor(repo, lang string, sender func(string) error) *Monitor {
+func NewMonitor(repo string, trend Trending, sender func(string) error) *Monitor {
 	fields := strings.Split(repo, "/")
 	return &Monitor{
-		author: fields[0],
-		name:   fields[1],
-		langs:  []string{"", lang},
-		send:   sender,
+		author:     fields[0],
+		name:       fields[1],
+		langs:      []string{"", trend.Language},
+		dateRanges: trend.DateRanges,
+		send:       sender,
 	}
 }
 
@@ -56,10 +68,25 @@ func (m *Monitor) Start() {
 
 		buf.WriteString(fmt.Sprintln(m.name))
 		for _, pos := range positions {
-			if pos.Lang == "" {
-				buf.WriteString(fmt.Sprintf("trending: %d\n", pos.Pos))
-			} else {
-				buf.WriteString(fmt.Sprintf("%s trending: %d\n", pos.Lang, pos.Pos))
+			switch pos.Range {
+			case dailyRange:
+				if pos.Lang == "" {
+					buf.WriteString(fmt.Sprintf("daily trending: %d\n", pos.Pos))
+				} else {
+					buf.WriteString(fmt.Sprintf("%s daily trending: %d\n", pos.Lang, pos.Pos))
+				}
+			case weeklyRange:
+				if pos.Lang == "" {
+					buf.WriteString(fmt.Sprintf("weekly trending: %d\n", pos.Pos))
+				} else {
+					buf.WriteString(fmt.Sprintf("%s weekly trending: %d\n", pos.Lang, pos.Pos))
+				}
+			case monthlyRange:
+				if pos.Lang == "" {
+					buf.WriteString(fmt.Sprintf("monthly trending: %d\n", pos.Pos))
+				} else {
+					buf.WriteString(fmt.Sprintf("%s monthly trending: %d\n", pos.Lang, pos.Pos))
+				}
 			}
 		}
 
@@ -69,26 +96,39 @@ func (m *Monitor) Start() {
 	}
 }
 
-func (m *Monitor) findInTrending() []Position {
-	var positions []Position
+func (m *Monitor) findInTrending() (positions []Position) {
+	for _, dateRange := range m.dateRanges {
+		for _, lang := range m.langs {
+			var repos []*ghtrending.Repository
+			var err error
+			switch dateRange {
+			case dailyRange:
+				repos, err = ghtrending.TrendingRepositories(ghtrending.WithDaily(), ghtrending.WithLanguage(lang))
+			case weeklyRange:
+				repos, err = ghtrending.TrendingRepositories(ghtrending.WithWeekly(), ghtrending.WithLanguage(lang))
+			case monthlyRange:
+				repos, err = ghtrending.TrendingRepositories(ghtrending.WithMonthly(), ghtrending.WithLanguage(lang))
+			}
+			if err != nil {
+				if e := m.send(err.Error()); err != nil {
+					logx.Error(e)
+				}
+				return
+			}
 
-	for _, lang := range m.langs {
-		repos, err := ghtrending.TrendingRepositories(ghtrending.WithDaily(), ghtrending.WithLanguage(lang))
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		for i, each := range repos {
-			if m.name == each.Name && m.author == each.Author {
-				positions = append(positions, Position{
-					Lang: lang,
-					Pos:  i + 1,
-				})
+			for i, each := range repos {
+				if m.name == each.Name && m.author == each.Author {
+					positions = append(positions, Position{
+						Lang:  lang,
+						Range: dateRange,
+						Pos:   i + 1,
+					})
+				}
 			}
 		}
 	}
 
-	return positions
+	return
 }
 
 func (m *Monitor) checkIfChanged(positions []Position) bool {
@@ -98,11 +138,11 @@ func (m *Monitor) checkIfChanged(positions []Position) bool {
 
 	pm := make(map[string]int)
 	for _, pos := range m.previous {
-		pm[pos.Lang] = pos.Pos
+		pm[pos.Lang+pos.Range] = pos.Pos
 	}
 
 	for _, pos := range positions {
-		if pos.Pos != pm[pos.Lang] {
+		if pos.Pos != pm[pos.Lang+pos.Range] {
 			return true
 		}
 	}
