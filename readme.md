@@ -21,6 +21,12 @@ Run `stargazers`:
 token: <github token>
 repo: <github repo like zeromicro/go-zero>
 interval: 1m
+trending:
+  language: Go
+  dateRanges:
+    - daily
+    - weekly
+    - monthly
 lark:
   appId: <app id>
   appSecret: <app secret>
@@ -33,6 +39,7 @@ slack:
 
 The notification message looks like:
 
+- star event
 ```
 stars: 12157
 today: 27
@@ -42,3 +49,10 @@ followers: 6
 time: 10-26 22:52:56
 ```
 
+- trending event
+```
+go-zero
+Go daily trending: 9
+Go weekly trending: 5
+Go monthly trending: 19
+```
