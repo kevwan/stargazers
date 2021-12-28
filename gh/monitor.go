@@ -39,18 +39,14 @@ func NewMonitor(cfg Config, send func(text string) error) Monitor {
 	}
 }
 
-func (m Monitor) Start() error {
+func (m Monitor) Start() {
 	owner, project, err := ParseRepo(m.cfg.Repo)
-	if err != nil {
-		return err
-	}
+	logx.Must(err)
 
 	cli := CreateClient(m.cfg.Token)
-	if stars, err := RequestAll(cli, owner, project); err != nil {
-		return err
-	} else {
-		stargazers = stars
-	}
+	stars, err := RequestAll(cli, owner, project)
+	logx.Must(err)
+	stargazers = stars
 
 	ticker := time.NewTicker(m.cfg.Interval)
 	defer ticker.Stop()
@@ -58,8 +54,6 @@ func (m Monitor) Start() error {
 		m.refresh(cli, owner, project)
 		m.report()
 	}
-
-	return nil
 }
 
 func (m Monitor) beginOfDay(t time.Time) time.Time {

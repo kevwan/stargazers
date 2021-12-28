@@ -8,17 +8,19 @@ import (
 	"stargazers/lark"
 	"stargazers/lark/webhook"
 	"stargazers/slack"
+	"stargazers/trending"
 
 	"github.com/tal-tech/go-zero/core/conf"
-	"github.com/tal-tech/go-zero/core/logx"
+	"github.com/tal-tech/go-zero/core/service"
 )
 
 var configFile = flag.String("f", "config.yaml", "the config file")
 
 type Config struct {
 	gh.Config
-	Lark  *lark.Lark   `json:"lark,optional"`
-	Slack *slack.Slack `json:"slack,optional"`
+	Trending string       `json:"trending,default=Go"`
+	Lark     *lark.Lark   `json:"lark,optional"`
+	Slack    *slack.Slack `json:"slack,optional"`
 }
 
 func getSender(c Config) func(string) error {
@@ -61,6 +63,9 @@ func main() {
 	if sender == nil {
 		log.Fatal("Set either lark, webhook or slack to receive notifications.")
 	}
-	mon := gh.NewMonitor(c.Config, sender)
-	logx.Must(mon.Start())
+
+	group := service.NewServiceGroup()
+	group.Add(service.WithStarter(gh.NewMonitor(c.Config, sender)))
+	group.Add(service.WithStarter(trending.NewMonitor(c.Repo, c.Trending, sender)))
+	group.Start()
 }
