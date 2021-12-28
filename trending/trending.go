@@ -45,9 +45,11 @@ func (m *Monitor) Start() {
 	for range ticker.C {
 		buf.Reset()
 		positions := m.findInTrending()
-		if m.checkIfChanged(positions) {
-			m.previous = positions
+		if !m.checkIfChanged(positions) {
+			continue
 		}
+
+		m.previous = positions
 		if len(positions) == 0 {
 			continue
 		}
