@@ -6,8 +6,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/tal-tech/go-zero/core/jsonx"
-	"github.com/tal-tech/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/jsonx"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const slackPostMessageUrl = "https://slack.com/api/chat.postMessage"

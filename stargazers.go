@@ -10,8 +10,8 @@ import (
 	"stargazers/slack"
 	"stargazers/trending"
 
-	"github.com/tal-tech/go-zero/core/conf"
-	"github.com/tal-tech/go-zero/core/service"
+	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/service"
 )
 
 var configFile = flag.String("f", "config.yaml", "the config file")

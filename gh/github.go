@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v39/github"
-	"github.com/tal-tech/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/oauth2"
 )
 
