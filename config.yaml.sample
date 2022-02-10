@@ -11,3 +11,5 @@ lark_webhook:
 slack:
   token: <oauth token>
   channel: <channel>
+comparisons:
+  - cli/cli
