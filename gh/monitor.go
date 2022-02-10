@@ -29,12 +29,14 @@ var (
 
 type Monitor struct {
 	cfg  Config
+	cli  *github.Client
 	send func(string) error
 }
 
 func NewMonitor(cfg Config, send func(text string) error) Monitor {
 	return Monitor{
 		cfg:  cfg,
+		cli:  CreateClient(cfg.Token),
 		send: send,
 	}
 }
@@ -43,15 +45,14 @@ func (m Monitor) Start() {
 	owner, project, err := ParseRepo(m.cfg.Repo)
 	logx.Must(err)
 
-	cli := CreateClient(m.cfg.Token)
-	stars, err := RequestAll(cli, owner, project)
+	stars, err := RequestAll(m.cli, owner, project)
 	logx.Must(err)
 	stargazers = stars
 
 	ticker := time.NewTicker(m.cfg.Interval)
 	defer ticker.Stop()
 	for range ticker.C {
-		m.refresh(cli, owner, project)
+		m.refresh(owner, project)
 		m.report()
 	}
 }
@@ -59,6 +60,19 @@ func (m Monitor) Start() {
 func (m Monitor) beginOfDay(t time.Time) time.Time {
 	year, month, day := t.Date()
 	return time.Date(year, month, day, 0, 0, 0, 0, t.Location())
+}
+
+func (m Monitor) compare(buf *strings.Builder, total int) {
+	for _, comp := range m.cfg.Comparisons {
+		owner, project, err := ParseRepo(comp)
+		if err != nil {
+			logx.Error(err)
+			return
+		}
+
+		repo, _, err := m.cli.Repositories.Get(context.Background(), owner, project)
+		fmt.Fprintf(buf, "\n%s: %d/%d", project, total-*repo.StargazersCount, *repo.StargazersCount)
+	}
 }
 
 func (m Monitor) countsToday(total int) int {
@@ -97,19 +111,20 @@ func (m Monitor) handleResponseError(err error, repo *github.Repository, k strin
 		fmt.Fprintf(&builder, "today: %d\n", m.countsToday(*repo.StargazersCount))
 		fmt.Fprintf(&builder, "user: %s\n", k)
 		fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
+		m.compare(&builder, *repo.StargazersCount)
 		fifo.Put(builder.String())
 	}
 }
 
-func (m Monitor) refresh(cli *github.Client, owner, project string) {
-	count, err := m.totalCount(cli, owner, project)
+func (m Monitor) refresh(owner, project string) {
+	count, err := m.totalCount(owner, project)
 	if err != nil {
 		logx.Errorf("refresh - %s", err.Error())
 		return
 	}
 
 	logx.Infof("stars: %d", count)
-	if err := m.requestPage(cli, owner, project, count, (count+pageSize-1)/pageSize); err != nil {
+	if err := m.requestPage(owner, project, count, (count+pageSize-1)/pageSize); err != nil {
 		logx.Error(err)
 	}
 }
@@ -129,20 +144,20 @@ func (m Monitor) report() {
 	}
 }
 
-func (m Monitor) reportStarring(cli *github.Client, owner, project string, total int, gazer *github.Stargazer) {
+func (m Monitor) reportStarring(owner, project string, total int, gazer *github.Stargazer) {
 	if gazer.StarredAt.Time.Before(startTime) {
 		return
 	}
 
 	ensureOnce(func() error {
-		name, followers, err := m.requestNameFollowers(cli, *gazer.User.Login)
+		name, followers, err := m.requestNameFollowers(*gazer.User.Login)
 		if err != nil {
 			logx.Error(err)
 			return err
 		}
 
 		// refresh count, because users might star after fetching count
-		if count, err := m.totalCount(cli, owner, project); err == nil {
+		if count, err := m.totalCount(owner, project); err == nil {
 			total = count
 		}
 
@@ -157,6 +172,7 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 			fmt.Fprintf(&builder, "followers: %d\n", followers)
 		}
 		fmt.Fprintf(&builder, "time: %s", gazer.StarredAt.Time.Local().Format(starAtFormat))
+		m.compare(&builder, total)
 		text := builder.String()
 		fifo.Put(text)
 		logx.Infof("star-event: %s", text)
@@ -165,8 +181,8 @@ func (m Monitor) reportStarring(cli *github.Client, owner, project string, total
 	}, time.Minute)
 }
 
-func (m Monitor) requestPage(cli *github.Client, owner, project string, count, page int) error {
-	gazers, resp, err := cli.Activity.ListStargazers(context.Background(),
+func (m Monitor) requestPage(owner, project string, count, page int) error {
+	gazers, resp, err := m.cli.Activity.ListStargazers(context.Background(),
 		owner, project, &github.ListOptions{
 			Page:    page,
 			PerPage: pageSize,
@@ -182,19 +198,19 @@ func (m Monitor) requestPage(cli *github.Client, owner, project string, count, p
 		}
 
 		stargazers[id] = gazer.StarredAt.Time
-		m.reportStarring(cli, owner, project, count, gazer)
+		m.reportStarring(owner, project, count, gazer)
 	}
 
 	if len(gazers) > 0 && gazers[0].StarredAt.Time.After(m.beginOfDay(time.Now())) {
-		return m.requestPage(cli, owner, project, count, resp.PrevPage)
+		return m.requestPage(owner, project, count, resp.PrevPage)
 	}
 
 	return nil
 }
 
-func (m Monitor) requestNameFollowers(cli *github.Client, id string) (name string, followers int, err error) {
+func (m Monitor) requestNameFollowers(id string) (name string, followers int, err error) {
 	var user *github.User
-	user, err = RequestUser(cli, id)
+	user, err = RequestUser(m.cli, id)
 	if err != nil {
 		return
 	}
@@ -224,11 +240,12 @@ func (m Monitor) reportUnstar(repo *github.Repository, id string, name string, f
 		fmt.Fprintf(&builder, "followers: %d\n", followers)
 	}
 	fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
+	m.compare(&builder, *repo.StargazersCount)
 	fifo.Put(builder.String())
 }
 
-func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, error) {
-	repo, _, err := cli.Repositories.Get(context.Background(), owner, project)
+func (m Monitor) totalCount(owner, project string) (int, error) {
+	repo, _, err := m.cli.Repositories.Get(context.Background(), owner, project)
 	if err != nil {
 		return 0, err
 	}
@@ -236,7 +253,7 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 	day := time.Now().Format(dayFormat)
 	prev := dayStars[day]
 	if *repo.StargazersCount < prev {
-		stars, err := RequestAll(cli, owner, project)
+		stars, err := RequestAll(m.cli, owner, project)
 		if err != nil {
 			return 0, err
 		}
@@ -246,7 +263,7 @@ func (m Monitor) totalCount(cli *github.Client, owner, project string) (int, err
 				continue
 			}
 
-			name, followers, err := m.requestNameFollowers(cli, k)
+			name, followers, err := m.requestNameFollowers(k)
 			if err != nil {
 				m.handleResponseError(err, repo, k, v)
 				continue
