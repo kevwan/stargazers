@@ -13,11 +13,12 @@ import (
 )
 
 const (
-	pageSize       = 100
-	queueSize      = 100
-	dayFormat      = "2006 01-02"
-	starAtFormat   = "01-02 15:04:05"
-	unstarAtFormat = "2006 01-02 15:04:05"
+	pageSize        = 100
+	queueSize       = 100
+	dayFormat       = "2006 01-02"
+	expectDayLayout = "2006-01-02"
+	starAtFormat    = "01-02 15:04:05"
+	unstarAtFormat  = "2006 01-02 15:04:05"
 )
 
 var (
@@ -49,6 +50,11 @@ func (m Monitor) Start() {
 	logx.Must(err)
 	stargazers = stars
 
+	if m.cfg.Expect != nil {
+		_, err := time.Parse(expectDayLayout, m.cfg.Expect.Date)
+		logx.Must(err)
+	}
+
 	ticker := time.NewTicker(m.cfg.Interval)
 	defer ticker.Stop()
 	for range ticker.C {
@@ -60,6 +66,25 @@ func (m Monitor) Start() {
 func (m Monitor) beginOfDay(t time.Time) time.Time {
 	year, month, day := t.Date()
 	return time.Date(year, month, day, 0, 0, 0, 0, t.Location())
+}
+
+func (m Monitor) calculateExpect(buf *strings.Builder, stars int) {
+	if m.cfg.Expect == nil {
+		return
+	}
+
+	if stars > m.cfg.Expect.Stars {
+		return
+	}
+
+	deadline, err := time.Parse(expectDayLayout, m.cfg.Expect.Date)
+	if err != nil || time.Now().After(deadline) {
+		return
+	}
+
+	diff := deadline.Sub(time.Now()).Hours() / 24
+	expect := float64(m.cfg.Expect.Stars-stars) / diff
+	fmt.Fprintf(buf, "\nexpect: %.2f per day", expect)
 }
 
 func (m Monitor) compare(buf *strings.Builder, total int) {
@@ -111,6 +136,7 @@ func (m Monitor) handleResponseError(err error, repo *github.Repository, k strin
 		fmt.Fprintf(&builder, "today: %d\n", m.countsToday(*repo.StargazersCount))
 		fmt.Fprintf(&builder, "user: %s\n", k)
 		fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
+		m.calculateExpect(&builder, *repo.StargazersCount)
 		m.compare(&builder, *repo.StargazersCount)
 		fifo.Put(builder.String())
 	}
@@ -173,6 +199,7 @@ func (m Monitor) reportStarring(owner, project string, total int, gazer *github.
 		}
 		fmt.Fprintf(&builder, "time: %s", gazer.StarredAt.Time.Local().Format(starAtFormat))
 		m.compare(&builder, total)
+		m.calculateExpect(&builder, total)
 		text := builder.String()
 		fifo.Put(text)
 		logx.Infof("star-event: %s", text)
@@ -241,6 +268,7 @@ func (m Monitor) reportUnstar(repo *github.Repository, id string, name string, f
 	}
 	fmt.Fprintf(&builder, "starAt: %s", v.Local().Format(unstarAtFormat))
 	m.compare(&builder, *repo.StargazersCount)
+	m.calculateExpect(&builder, *repo.StargazersCount)
 	fifo.Put(builder.String())
 }
 

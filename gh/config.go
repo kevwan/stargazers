@@ -7,5 +7,9 @@ type Config struct {
 	Repo        string        `json:"repo"`
 	Comparisons []string      `json:"comparisons,optional"`
 	Interval    time.Duration `json:"interval,default=1m"`
-	Verbose     bool          `json:"verbose,default=false"`
+	Expect      *struct {
+		Date  string `json:"date"`
+		Stars int    `json:"stars"`
+	} `json:"expect,optional"`
+	Verbose bool `json:"verbose,default=false"`
 }
