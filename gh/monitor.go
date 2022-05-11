@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"stargazers/sender"
+
 	"github.com/google/go-github/v39/github"
 	"github.com/zeromicro/go-zero/core/collection"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -29,16 +31,16 @@ var (
 )
 
 type Monitor struct {
-	cfg  Config
-	cli  *github.Client
-	send func(string) error
+	cfg    Config
+	cli    *github.Client
+	sender sender.Sender
 }
 
-func NewMonitor(cfg Config, send func(text string) error) Monitor {
+func NewMonitor(cfg Config, sender sender.Sender) Monitor {
 	return Monitor{
-		cfg:  cfg,
-		cli:  CreateClient(cfg.Token),
-		send: send,
+		cfg:    cfg,
+		cli:    CreateClient(cfg.Token),
+		sender: sender,
 	}
 }
 
@@ -162,7 +164,7 @@ func (m Monitor) report() {
 			break
 		}
 
-		if err := m.send(val.(string)); err != nil {
+		if err := m.sender.Send(val.(string)); err != nil {
 			fifo.Put(val)
 			logx.Error(err)
 			break

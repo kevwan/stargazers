@@ -6,9 +6,10 @@ import (
 
 	"stargazers/gh"
 	"stargazers/lark"
-	"stargazers/lark/webhook"
+	"stargazers/sender"
 	"stargazers/slack"
 	"stargazers/trending"
+	"stargazers/wecom"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/service"
@@ -21,34 +22,20 @@ type Config struct {
 	Trending trending.Trending `json:"trending,optional"`
 	Lark     *lark.Lark        `json:"lark,optional"`
 	Slack    *slack.Slack      `json:"slack,optional"`
+	Wecom    *wecom.Wecom      `json:"wecom,optional"`
 }
 
-func getSender(c Config) func(string) error {
+func getSender(c Config) sender.Sender {
 	if c.Lark != nil {
-		app := lark.NewApp(c.Lark.AppId, c.Lark.AppSecret)
-		if len(c.Lark.Receiver) > 0 || len(c.Lark.ReceiverEmail) > 0 {
-			return func(message string) error {
-				return app.Send(
-					c.Lark.Receiver,
-					c.Lark.ReceiverEmail,
-					message,
-				)
-			}
-		} else if len(c.Lark.WebhookUrl) > 0 {
-			return func(message string) error {
-				return webhook.Send(c.Lark.WebhookUrl, message)
-			}
-		}
+		return lark.NewSender(c.Lark)
 	}
 
 	if c.Slack != nil {
-		return func(message string) error {
-			return slack.Send(
-				c.Slack.Token,
-				c.Slack.Channel,
-				message,
-			)
-		}
+		return slack.NewSender(c.Slack)
+	}
+
+	if c.Wecom != nil {
+		return wecom.NewSender(c.Wecom)
 	}
 
 	return nil

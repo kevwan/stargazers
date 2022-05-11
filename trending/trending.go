@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"stargazers/sender"
+
 	"github.com/darjun/ghtrending"
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -27,7 +29,7 @@ type (
 		author     string
 		langs      []string
 		dateRanges []string
-		send       func(string) error
+		sender     sender.Sender
 		previous   []Position
 	}
 
@@ -38,14 +40,14 @@ type (
 	}
 )
 
-func NewMonitor(repo string, trend Trending, sender func(string) error) *Monitor {
+func NewMonitor(repo string, trend Trending, sender sender.Sender) *Monitor {
 	fields := strings.Split(repo, "/")
 	return &Monitor{
 		author:     fields[0],
 		name:       fields[1],
 		langs:      []string{"", trend.Language},
 		dateRanges: trend.DateRanges,
-		send:       sender,
+		sender:     sender,
 	}
 }
 
@@ -90,7 +92,7 @@ func (m *Monitor) Start() {
 			}
 		}
 
-		if err := m.send(buf.String()); err != nil {
+		if err := m.sender.Send(buf.String()); err != nil {
 			logx.Error(err)
 		}
 	}
@@ -110,7 +112,7 @@ func (m *Monitor) findInTrending() (positions []Position) {
 				repos, err = ghtrending.TrendingRepositories(ghtrending.WithMonthly(), ghtrending.WithLanguage(lang))
 			}
 			if err != nil {
-				if e := m.send(err.Error()); err != nil {
+				if e := m.sender.Send(err.Error()); err != nil {
 					logx.Error(e)
 				}
 				return

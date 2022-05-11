@@ -1,54 +1,51 @@
 package slack
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"errors"
 	"net/http"
 
-	"github.com/zeromicro/go-zero/core/jsonx"
-	"github.com/zeromicro/go-zero/core/logx"
+	"stargazers/sender"
+
+	"github.com/zeromicro/go-zero/rest/httpc"
 )
 
 const slackPostMessageUrl = "https://slack.com/api/chat.postMessage"
 
 type (
-	Request struct {
-		Channel string `json:"channel"`
-		Text    string `json:"text"`
+	app struct {
+		c *Slack
 	}
 
-	Response struct {
+	request struct {
+		Channel       string `json:"channel"`
+		Text          string `json:"text"`
+		Authorization string `header:"Authorization"`
+	}
+
+	response struct {
 		OK    bool   `json:"ok"`
 		Error string `json:",optional"`
 	}
 )
 
-func Send(token, channel, message string) error {
-	slackMsg := Request{
-		Channel: channel,
-		Text:    message,
-	}
-	var buf bytes.Buffer
-	encoder := json.NewEncoder(&buf)
-	if err := encoder.Encode(slackMsg); err != nil {
-		return err
-	}
+func NewSender(c *Slack) sender.Sender {
+	return &app{c: c}
+}
 
-	r, err := http.NewRequest(http.MethodPost, slackPostMessageUrl, &buf)
+func (a *app) Send(message string) error {
+	req := request{
+		Channel:       a.c.Channel,
+		Text:          message,
+		Authorization: "Bearer " + a.c.Token,
+	}
+	resp, err := httpc.Do(context.Background(), http.MethodPost, slackPostMessageUrl, req)
 	if err != nil {
 		return err
 	}
 
-	r.Header.Set("Authorization", "Bearer "+token)
-	r.Header.Set("Content-Type", "application/json; charset=utf-8")
-	resp, err := new(http.Client).Do(r)
-	if err != nil {
-		return err
-	}
-
-	var rsp Response
-	if err := jsonx.UnmarshalFromReader(resp.Body, &rsp); err != nil {
+	var rsp response
+	if err := httpc.Parse(resp, &rsp); err != nil {
 		return err
 	}
 
@@ -56,6 +53,5 @@ func Send(token, channel, message string) error {
 		return errors.New(rsp.Error)
 	}
 
-	logx.Info("sent")
 	return nil
 }
