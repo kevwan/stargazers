@@ -7,7 +7,7 @@ import (
 
 	"stargazers/sender"
 
-	"github.com/darjun/ghtrending"
+	"github.com/andygrunwald/go-trending"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -99,17 +99,18 @@ func (m *Monitor) Start() {
 }
 
 func (m *Monitor) findInTrending() (positions []Position) {
+	trend := trending.NewTrending()
 	for _, dateRange := range m.dateRanges {
 		for _, lang := range m.langs {
-			var repos []*ghtrending.Repository
+			var repos []trending.Project
 			var err error
 			switch dateRange {
 			case dailyRange:
-				repos, err = ghtrending.TrendingRepositories(ghtrending.WithDaily(), ghtrending.WithLanguage(lang))
+				repos, err = trend.GetProjects(trending.TimeToday, lang)
 			case weeklyRange:
-				repos, err = ghtrending.TrendingRepositories(ghtrending.WithWeekly(), ghtrending.WithLanguage(lang))
+				repos, err = trend.GetProjects(trending.TimeWeek, lang)
 			case monthlyRange:
-				repos, err = ghtrending.TrendingRepositories(ghtrending.WithMonthly(), ghtrending.WithLanguage(lang))
+				repos, err = trend.GetProjects(trending.TimeMonth, lang)
 			}
 			if err != nil {
 				if e := m.sender.Send(err.Error()); err != nil {
@@ -119,7 +120,7 @@ func (m *Monitor) findInTrending() (positions []Position) {
 			}
 
 			for i, each := range repos {
-				if m.name == each.Name && m.author == each.Author {
+				if m.name == each.RepositoryName && m.author == each.Owner {
 					positions = append(positions, Position{
 						Lang:  lang,
 						Range: dateRange,
