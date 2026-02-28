@@ -98,6 +98,11 @@ func (m Monitor) compare(buf *strings.Builder, total int) {
 		}
 
 		repo, _, err := m.cli.Repositories.Get(context.Background(), owner, project)
+		if err != nil {
+			logx.Error(err)
+			continue
+		}
+
 		fmt.Fprintf(buf, "\n%s: %d/%d", project, total-*repo.StargazersCount, *repo.StargazersCount)
 	}
 }
